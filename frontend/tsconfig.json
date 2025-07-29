@@ -1,0 +1,9 @@
+// tsconfig.json (в корне проекта)
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  }
+}
