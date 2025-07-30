@@ -1,24 +1,23 @@
-// src/router/AppRoutes.tsx
 import React from 'react';
 import { useRoutes } from 'react-router-dom';
 
-import HomePage from '@/pages/HomePage';
-import InfoPage from '@/blocks/main/InfoPage';
+import HomePage from '../pages/HomePage';
+import InfoPage from '../blocks/main/InfoPage';
 
 // Listing module
-import ListingListPage from '@/blocks/listing/ListingListPage';
-import ListingFormPage from '@/blocks/listing/ListingFormPage';
-import ListingDetailPage from '@/blocks/listing/ListingDetailPage';
+import ListingListPage from '../blocks/listing/ListingListPage';
+import ListingFormPage from '../blocks/listing/ListingFormPage';
+import ListingDetailPage from '../blocks/listing/ListingDetailPage';
 
 // User features
-import RegisterPage from '@/features/users/RegisterPage';
-import ConfirmEmailPage from '@/features/users/ConfirmEmailPage';
-import LoginPage from '@/features/users/LoginPage';
-import Logout from '@/features/users/Logout';
-import ProfilePage from '@/features/users/ProfilePage';
-import RequireAuth from '@/shared/components/RequireAuth';
+import RegisterPage from '../features/users/RegisterPage';
+import ConfirmEmailPage from '../features/users/ConfirmEmailPage';
+import LoginPage from '../features/users/LoginPage';
+import Logout from '../features/users/Logout';
+import ProfilePage from '../features/users/ProfilePage';
+import RequireAuth from '../shared/components/RequireAuth';
 
-import NotFoundPage from '@/pages/NotFoundPage';
+import NotFoundPage from '../pages/NotFoundPage';
 
 const routes = [
   { path: '/', element: <HomePage /> },

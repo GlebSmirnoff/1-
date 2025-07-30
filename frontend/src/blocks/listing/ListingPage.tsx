@@ -4,6 +4,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { useListings } from './api';
 import ListingCard from './components/ListingCard';
 
+
 const ListingListPage: React.FC = () => {
   const {
     data: listings = [],

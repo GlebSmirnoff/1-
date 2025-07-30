@@ -1,62 +1,72 @@
 // src/blocks/listing/components/PhotoGalleryUploader.tsx
-import React from 'react';
-import { useListing, useUploadListingPhoto, useDeleteListingPhoto } from '../api';
-import { Spinner } from '@/components/ui/spinner';
-import type { ListingPhoto } from '@/shared/types/listing';
+import React, { useState } from 'react';
+import Spinner from '../../../components/ui/spinner';
+import { uploadPhoto, deleteListingPhoto } from '../api';
 
-interface PhotoGalleryUploaderProps {
-  listingId: number;
+interface Photo {
+  id: number;
+  image: string;
+  is_main: boolean;
 }
 
-const PhotoGalleryUploader: React.FC<PhotoGalleryUploaderProps> = ({ listingId }) => {
-  const { data: listing, isLoading: isLoadingListing } = useListing(listingId);
-  const uploadMutation = useUploadListingPhoto(listingId);
-  const deleteMutation = useDeleteListingPhoto(listingId);
+interface Props {
+  listingId: number;
+  initialPhotos: Photo[];
+}
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files) {
-      Array.from(files).forEach((file) => uploadMutation.mutate(file));
+export default function PhotoGalleryUploader({ listingId, initialPhotos }: Props) {
+  const [photos, setPhotos] = useState<Photo[]>(initialPhotos);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return;
+    setUploading(true);
+    const file = e.target.files[0];
+    try {
+      const res = await uploadListingPhoto(listingId, file);
+      setPhotos(prev => [...prev, res.data]);
+    } catch (err) {
+      console.error('Upload error', err);
+    } finally {
+      setUploading(false);
     }
   };
 
-  if (isLoadingListing) {
-    return (
-      <div className="flex justify-center items-center h-32">
-        <Spinner />
-      </div>
-    );
-  }
+  const handleDelete = async (photoId: number) => {
+    try {
+      await deleteListingPhoto(photoId);
+      setPhotos(prev => prev.filter(p => p.id !== photoId));
+    } catch (err) {
+      console.error('Delete error', err);
+    }
+  };
 
   return (
-    <div className="space-y-2">
-      <label className="block mb-1 font-medium">Фотогалерея</label>
-      <input type="file" multiple onChange={handleFileChange} className="mb-2" />
-      {uploadMutation.isLoading && (
-        <div className="flex items-center">
-          <Spinner size="sm" /> Завантаження фото...
-        </div>
-      )}
-      <div className="grid grid-cols-3 gap-2">
-        {listing?.photos.map((photo: ListingPhoto) => (
-          <div key={photo.id} className="relative group">
-            <img
-              src={photo.image}
-              alt={`Photo ${photo.id}`}
-              className="w-full h-32 object-cover rounded"
-            />
+    <div>
+      <div className="flex gap-2 overflow-x-auto mb-4">
+        {photos.map(photo => (
+          <div key={photo.id} className="relative">
+            <img src={photo.image} alt="listing" className="w-32 h-32 object-cover rounded" />
             <button
-              type="button"
-              onClick={() => deleteMutation.mutate(photo.id)}
-              className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition"
+              className="absolute top-1 right-1 bg-red-600 text-white p-1 rounded-full"
+              onClick={() => handleDelete(photo.id)}
             >
-              ×
+              &times;
             </button>
           </div>
         ))}
+        {uploading && (
+          <div className="flex items-center justify-center w-32 h-32 border-dashed border-2">
+            <Spinner size="sm" />
+          </div>
+        )}
       </div>
+      <label className="block">
+        <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+        <div className="px-4 py-2 bg-blue-600 text-white rounded cursor-pointer text-center">
+          {uploading ? 'Uploading...' : 'Upload Photo'}
+        </div>
+      </label>
     </div>
   );
-};
-
-export default PhotoGalleryUploader;
+}

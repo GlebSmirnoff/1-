@@ -1,207 +1,355 @@
 // src/blocks/listing/components/ListingForm.tsx
-import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { FormProvider, useForm, Controller } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
-import type { Listing } from '../../../shared/types/listing';
+import React from 'react'
+import { useForm, Controller } from 'react-hook-form'
+import { yupResolver } from '@hookform/resolvers/yup'
+import { listingSchema } from '../../../shared/utils/validation'
+import Input from '../../../components/ui/input'
+import Button from '../../../components/ui/button'
 import {
-  useListing,
-  useCreateListing,
-  useUpdateListing,
-} from '../api';
-import { listingSchema } from '../../../shared/utils/validation';
-import { Input } from '../../../components/ui/input';
-import { Button } from '../../../components/ui/button';
-import { Spinner } from '../../../components/ui/spinner';
-import BrandSelect from './BrandSelect';
-import ModelSelect from './ModelSelect';
-import FeaturesPanel from './FeaturesPanel';
-import PhotoGalleryUploader from './PhotoGalleryUploader';
+  createListing,
+  updateListing,
+  fetchBrands,
+  fetchModels,
+  fetchBodyTypes,
+  fetchEngines,
+  fetchTransmissions,
+  fetchFuelTypes,
+  fetchDriveTypes,
+  fetchColors,
+} from '../api'
+import { useQuery } from '@tanstack/react-query'
 
-export interface ListingFormProps {}
+interface FormValues {
+  title: string
+  description: string
+  vin?: string
+  price: number
+  year: number
+  mileage: number
+  owners_count: number
+  currency: 'UAH' | 'USD'
+  brand?: number
+  model?: number
+  body_type?: number
+  engine?: number
+  transmission?: number
+  fuel_type?: number
+  drive_type?: number
+  color?: number
+}
 
-type FormValues = Omit<
-  Listing,
-  'id' | 'created_at' | 'updated_at' | 'slug' | 'is_promoted' | 'moderation_status' | 'promoted_until'
-> & {
-  brand: { id: number };
-  model: { id: number };
-  description?: string;
-};
+interface Props {
+  listingId?: number
+  initialValues?: Partial<FormValues>
+}
 
-const ListingForm: React.FC<ListingFormProps> = () => {
-  const { id } = useParams<{ id: string }>();
-  const listingId = id ? Number(id) : undefined;
-  const navigate = useNavigate();
-  const [submitError, setSubmitError] = useState<string | null>(null);
-
-  const { data: listing, isLoading: isLoadingListing } = useListing(listingId ?? 0);
-  const createMutation = useCreateListing();
-  const updateMutation = useUpdateListing();
-
-  const methods = useForm<FormValues>({
-    resolver: yupResolver(listingSchema),
-    defaultValues: listing
-      ? { ...listing, brand: { id: listing.brand.id }, model: { id: listing.model.id } }
-      : undefined,
-  });
-
+export default function ListingForm({ listingId, initialValues }: Props) {
   const {
+    control,
+    register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
-    reset,
-  } = methods;
+  } = useForm<FormValues>({
+    resolver: yupResolver(listingSchema),
+    defaultValues: {
+      currency: 'USD',
+      ...initialValues,
+    },
+  })
 
-  useEffect(() => {
-    if (listing) {
-      reset({ ...listing, brand: { id: listing.brand.id }, model: { id: listing.model.id } });
-    }
-  }, [listing, reset]);
+  // --- data fetching ---
+  const { data: brands = [] } = useQuery({ queryKey: ['brands'], queryFn: fetchBrands })
+  const selectedBrand = watch('brand')
+  const { data: models = [] } = useQuery({
+    queryKey: ['models', selectedBrand],
+    queryFn: () => fetchModels(selectedBrand!),
+    enabled: Boolean(selectedBrand),
+  })
+  const { data: bodyTypes = [] } = useQuery({ queryKey: ['body_types'], queryFn: fetchBodyTypes })
+  const { data: engines = [] } = useQuery({ queryKey: ['engines'], queryFn: fetchEngines })
+  const { data: transmissions = [] } = useQuery({
+    queryKey: ['transmissions'],
+    queryFn: fetchTransmissions,
+  })
+  const { data: fuelTypes = [] } = useQuery({
+    queryKey: ['fuel_types'],
+    queryFn: fetchFuelTypes,
+  })
+  const { data: driveTypes = [] } = useQuery({
+    queryKey: ['drive_types'],
+    queryFn: fetchDriveTypes,
+  })
+  const { data: colors = [] } = useQuery({ queryKey: ['colors'], queryFn: fetchColors })
 
   const onSubmit = async (data: FormValues) => {
-    setSubmitError(null);
-    const payload = { ...data, brand: data.brand.id, model: data.model.id };
     try {
-      if (listingId) {
-        await updateMutation.mutateAsync({ id: listingId, payload });
-      } else {
-        await createMutation.mutateAsync(payload);
-      }
-      navigate('/listings');
-    } catch (error: any) {
-      console.error('Submit error:', error);
-      setSubmitError(error?.message || 'Сталася помилка при відправці');
+      if (listingId) await updateListing(listingId, data)
+      else await createListing(data)
+      // TODO: редирект / уведомление
+    } catch (err) {
+      console.error('Error saving listing', err)
     }
-  };
-
-  if (listingId && isLoadingListing) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <Spinner />
-      </div>
-    );
   }
 
   return (
-    <FormProvider {...methods}>
-      <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-6 max-w-2xl mx-auto">
-        {submitError && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-            {submitError}
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      {/* Title */}
+      <div>
+        <label className="block mb-1">Title</label>
+        <Input {...register('title')} />
+        {errors.title && <p className="text-red-600">{errors.title.message}</p>}
+      </div>
+
+      {/* Description */}
+      <div>
+        <label className="block mb-1">Description</label>
+        <textarea
+          {...register('description')}
+          className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        {errors.description && (
+          <p className="text-red-600">{errors.description.message}</p>
+        )}
+      </div>
+
+      {/* VIN */}
+      <div>
+        <label className="block mb-1">VIN</label>
+        <Input {...register('vin')} />
+        {errors.vin && <p className="text-red-600">{errors.vin.message}</p>}
+      </div>
+
+      {/* Price & Year */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block mb-1">Price</label>
+          <Input type="number" {...register('price')} />
+          {errors.price && <p className="text-red-600">{errors.price.message}</p>}
+        </div>
+        <div>
+          <label className="block mb-1">Year</label>
+          <Input type="number" {...register('year')} />
+          {errors.year && <p className="text-red-600">{errors.year.message}</p>}
+        </div>
+      </div>
+
+      {/* Mileage & Owners */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block mb-1">Mileage</label>
+          <Input type="number" {...register('mileage')} />
+          {errors.mileage && (
+            <p className="text-red-600">{errors.mileage.message}</p>
+          )}
+        </div>
+        <div>
+          <label className="block mb-1">Owners Count</label>
+          <Input type="number" {...register('owners_count')} />
+          {errors.owners_count && (
+            <p className="text-red-600">{errors.owners_count.message}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Currency */}
+      <Controller
+        name="currency"
+        control={control}
+        render={({ field }) => (
+          <div>
+            <label className="block mb-1">Currency</label>
+            <select
+              {...field}
+              className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="UAH">UAH</option>
+              <option value="USD">USD</option>
+            </select>
           </div>
         )}
-        {/* Brand and Model */}
-        <BrandSelect />
-        <ModelSelect />
+      />
 
-        {/* Description */}
-        <div>
-          <label className="block mb-1 font-medium">Description</label>
-          <Controller
-            name="description"
-            control={methods.control}
-            render={({ field }) => (
-              <textarea
-                {...field}
-                className="border rounded p-2 w-full h-24"
-                placeholder="Enter description"
-              />
-            )}
-          />
-          {errors.description && <p className="text-red-500 text-sm">{errors.description.message}</p>}
-        </div>
-
-        {/* Basic fields */}
-        <div>
-          <label className="block mb-1 font-medium">Title</label>
-          <Controller
-            name="title"
-            control={methods.control}
-            render={({ field }) => <Input {...field} placeholder="Enter title" />}
-          />
-          {errors.title && <p className="text-red-500 text-sm">{errors.title.message}</p>}
-        </div>
-
-        {/* Price & Currency */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Brand */}
+      <Controller
+        name="brand"
+        control={control}
+        render={({ field }) => (
           <div>
-            <label className="block mb-1 font-medium">Price</label>
-            <Controller
-              name="price"
-              control={methods.control}
-              render={({ field }) => <Input type="number" {...field} placeholder="0" />}
-            />
-            {errors.price && <p className="text-red-500 text-sm">{errors.price.message}</p>}
+            <label className="block mb-1">Brand</label>
+            <select
+              {...field}
+              className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select brand</option>
+              {brands.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
           </div>
+        )}
+      />
+
+      {/* Model */}
+      <Controller
+        name="model"
+        control={control}
+        render={({ field }) => (
           <div>
-            <label className="block mb-1 font-medium">Currency</label>
-            <Controller
-              name="currency"
-              control={methods.control}
-              render={({ field }) => (
-                <select {...field} className="border rounded p-2 w-full">
-                  <option value="UAH">UAH</option>
-                  <option value="USD">USD</option>
-                </select>
-              )}
-            />
-            {errors.currency && <p className="text-red-500 text-sm">{errors.currency.message}</p>}
+            <label className="block mb-1">Model</label>
+            <select
+              {...field}
+              disabled={!selectedBrand}
+              className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select model</option>
+              {models.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
           </div>
-        </div>
+        )}
+      />
 
-        {/* Year & Mileage */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Body Type */}
+      <Controller
+        name="body_type"
+        control={control}
+        render={({ field }) => (
           <div>
-            <label className="block mb-1 font-medium">Year</label>
-            <Controller
-              name="year"
-              control={methods.control}
-              render={({ field }) => <Input type="number" {...field} placeholder="2020" />}
-            />
-            {errors.year && <p className="text-red-500 text-sm">{errors.year.message}</p>}
+            <label className="block mb-1">Body Type</label>
+            <select
+              {...field}
+              className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select body type</option>
+              {bodyTypes.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name}
+                </option>
+              ))}
+            </select>
           </div>
+        )}
+      />
+
+      {/* Engine */}
+      <Controller
+        name="engine"
+        control={control}
+        render={({ field }) => (
           <div>
-            <label className="block mb-1 font-medium">Mileage</label>
-            <Controller
-              name="mileage"
-              control={methods.control}
-              render={({ field }) => <Input type="number" {...field} placeholder="100000" />}
-            />
-            {errors.mileage && <p className="text-red-500 text-sm">{errors.mileage.message}</p>}
+            <label className="block mb-1">Engine</label>
+            <select
+              {...field}
+              className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select engine</option>
+              {engines.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name}
+                </option>
+              ))}
+            </select>
           </div>
-        </div>
+        )}
+      />
 
-        <FeaturesPanel />
-        {listingId && <PhotoGalleryUploader listingId={listingId} />}
+      {/* Transmission */}
+      <Controller
+        name="transmission"
+        control={control}
+        render={({ field }) => (
+          <div>
+            <label className="block mb-1">Transmission</label>
+            <select
+              {...field}
+              className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select transmission</option>
+              {transmissions.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      />
 
-        {/* VIN & Owners */}
-        <div>
-          <label className="block mb-1 font-medium">VIN</label>
-          <Controller
-            name="vin"
-            control={methods.control}
-            render={({ field }) => <Input {...field} placeholder="VIN code" />}
-          />
-          {errors.vin && <p className="text-red-500 text-sm">{errors.vin.message}</p>}
-        </div>
-        <div>
-          <label className="block mb-1 font-medium">Owners Count</label>
-          <Controller
-            name="owners_count"
-            control={methods.control}
-            render={({ field }) => <Input type="number" {...field} placeholder="1" />}
-          />
-          {errors.owners_count && <p className="text-red-500 text-sm">{errors.owners_count.message}</p>}
-        </div>
+      {/* Fuel Type */}
+      <Controller
+        name="fuel_type"
+        control={control}
+        render={({ field }) => (
+          <div>
+            <label className="block mb-1">Fuel Type</label>
+            <select
+              {...field}
+              className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select fuel type</option>
+              {fuelTypes.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      />
 
-        <div className="pt-6">
-          <Button type="submit" disabled={isSubmitting || createMutation.isLoading || updateMutation.isLoading}>
-            {listingId ? 'Update Listing' : 'Create Listing'}
-          </Button>
-        </div>
-      </form>
-    </FormProvider>
-  );
-};
+      {/* Drive Type */}
+      <Controller
+        name="drive_type"
+        control={control}
+        render={({ field }) => (
+          <div>
+            <label className="block mb-1">Drive Type</label>
+            <select
+              {...field}
+              className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select drive type</option>
+              {driveTypes.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      />
 
-export default ListingForm;
+      {/* Color */}
+      <Controller
+        name="color"
+        control={control}
+        render={({ field }) => (
+          <div>
+            <label className="block mb-1">Color</label>
+            <select
+              {...field}
+              className="border rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select color</option>
+              {colors.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      />
+
+      <Button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? 'Saving...' : 'Save Listing'}
+      </Button>
+    </form>
+  )
+}

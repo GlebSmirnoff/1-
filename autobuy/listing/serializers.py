@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Listing, ListingPhoto, Favorite, PROMO_TYPES
+from .models import Listing, ListingPhoto, Favorite, PROMO_TYPES, Brand, Model as CarModel, BodyType, Engine, Transmission, FuelType, DriveType, Color
 
 
 class ListingPhotoSerializer(serializers.ModelSerializer):
@@ -71,3 +71,42 @@ class PromoteSerializer(serializers.ModelSerializer):
         if value not in promo_types:
             raise serializers.ValidationError("Недійсний тип промо.")
         return value
+class BrandSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Brand
+        fields = ['id', 'name']
+
+class ModelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CarModel
+        fields = ['id', 'name', 'brand']
+
+class BodyTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BodyType
+        fields = ['id', 'name']
+
+class EngineSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Engine
+        fields = ['id', 'name', 'horsepower', 'volume_l']
+
+class TransmissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Transmission
+        fields = ['id', 'name']
+
+class FuelTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FuelType
+        fields = ['id', 'name']
+
+class DriveTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DriveType
+        fields = ['id', 'name']
+
+class ColorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Color
+        fields = ['id', 'name']

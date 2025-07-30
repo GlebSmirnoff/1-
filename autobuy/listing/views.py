@@ -5,8 +5,8 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes, action
 from django.shortcuts import get_object_or_404
 
-from .models import Listing, ListingPhoto, Favorite
-from .serializers import ListingSerializer, ListingPhotoSerializer, FavoriteSerializer, PromoteSerializer
+from .models import Listing, ListingPhoto, Favorite, Brand, Model as CarModel, BodyType, Engine, Transmission, FuelType, DriveType, Color
+from .serializers import ListingSerializer, ListingPhotoSerializer, FavoriteSerializer, PromoteSerializer, BrandSerializer, ModelSerializer, BodyTypeSerializer, EngineSerializer, TransmissionSerializer, FuelTypeSerializer, DriveTypeSerializer, ColorSerializer
 from django_filters.rest_framework import DjangoFilterBackend
 from .filters import ListingFilter
 from .permissions import IsModerator
@@ -274,3 +274,51 @@ class PromoteListingView(APIView):
         listing.save()
 
         return Response({"detail": f"Оголошення просунуте на {days} днiв як '{promo_type}'"})
+
+class BrandViewSet(viewsets.ReadOnlyModelViewSet):
+    """Endpoints: GET /brands/"""
+    queryset = Brand.objects.all()
+    serializer_class = BrandSerializer
+
+class ModelViewSet(viewsets.ReadOnlyModelViewSet):
+    """Endpoints: GET /models/ and GET /models/?brand=<id>"""
+    queryset = CarModel.objects.all()
+    serializer_class = ModelSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        brand = self.request.query_params.get('brand')
+        if brand:
+            qs = qs.filter(brand_id=brand)
+        return qs
+
+class BodyTypeViewSet(viewsets.ReadOnlyModelViewSet):
+    """Endpoints: GET /body_types/"""
+    queryset = BodyType.objects.all()
+    serializer_class = BodyTypeSerializer
+
+class EngineViewSet(viewsets.ReadOnlyModelViewSet):
+    """Endpoints: GET /engines/"""
+    queryset = Engine.objects.all()
+    serializer_class = EngineSerializer
+
+class TransmissionViewSet(viewsets.ReadOnlyModelViewSet):
+    """Endpoints: GET /transmissions/"""
+    queryset = Transmission.objects.all()
+    serializer_class = TransmissionSerializer
+
+class FuelTypeViewSet(viewsets.ReadOnlyModelViewSet):
+    """Endpoints: GET /fuel_types/"""
+    queryset = FuelType.objects.all()
+    serializer_class = FuelTypeSerializer
+
+class DriveTypeViewSet(viewsets.ReadOnlyModelViewSet):
+    """Endpoints: GET /drive_types/"""
+    queryset = DriveType.objects.all()
+    serializer_class = DriveTypeSerializer
+
+class ColorViewSet(viewsets.ReadOnlyModelViewSet):
+    """Endpoints: GET /colors/"""
+    queryset = Color.objects.all()
+    serializer_class = ColorSerializer
+
