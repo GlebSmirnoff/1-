@@ -1,6 +1,12 @@
-from django.urls import path
-from .views import SuggestView
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+
+from .views import ListingTipsViewSet
+
+router = DefaultRouter()
+router.register(r'listing/tips', ListingTipsViewSet, basename='listing-tips')
 
 urlpatterns = [
-    path("suggest/", SuggestView.as_view(), name="suggest"),
+    # /ai/assistant/…
+    path('', include(router.urls)),
 ]
