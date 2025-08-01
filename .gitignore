@@ -1,0 +1,25 @@
+# Virtualenv
+.venv/
+venv/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
+*.iml
+
+# Environment files
+.env.local
+
+# NPM cache / modules
+node_modules/
+frontend/node_modules/
+
+# Docker overrides
+docker-compose.override.yml
+
+# Lock files we no longer use
+package-lock.json
+requirements.txt
