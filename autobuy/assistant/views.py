@@ -2,49 +2,51 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-class ListingSuggestionView(APIView):
-    def post(self, request):
-        brand = request.data.get("brand")
-        model = request.data.get("model")
-        year = request.data.get("year")
-        engine = request.data.get("engine")
+"""assistant/views.py — refactored version with serializer, service layer and viewset
+   Depends: djangorestframework, project apps `assistant`, `listing`
+"""
+from rest_framework import serializers, status, viewsets, mixins
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.decorators import action
 
-        if not all([brand, model, year, engine]):
-            return Response({"error": "Усі поля обов'язкові: brand, model, year, engine"}, status=status.HTTP_400_BAD_REQUEST)
+from .services import generate_listing_suggestions
 
-        # 🔮 Заглушка — тут буде AI-логіка
-        suggested_price = 10000 + int(year) * 3
-        description = f"{brand} {model} {year} з {engine} двигуном — чудовий вибір для українських доріг."
+class ListingDraftSerializer(serializers.Serializer):
+    brand = serializers.CharField(max_length=64)
+    model = serializers.CharField(max_length=64)
+    year = serializers.IntegerField(min_value=1980, max_value=2050)
+    engine = serializers.CharField(max_length=32)
+    mileage = serializers.IntegerField(required=False, min_value=0)
+    description_user = serializers.CharField(required=False, allow_blank=True, max_length=2000)
 
-        return Response({
-            "suggested_price": suggested_price,
-            "description": description
-        })
+    def validate(self, attrs):
+        # Simple sanity‑check: year should not be in the future
+        from datetime import datetime
+        if attrs["year"] > datetime.now().year:
+            raise serializers.ValidationError({"year": "Year cannot be in the future"})
+        return attrs
 
-class SuggestView(APIView):
-    def post(self, request):
-        data = request.data
-        brand = data.get("brand")
-        model = data.get("model")
-        year = data.get("year")
-        engine = data.get("engine")
+class ListingTipsViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
+    """Return AI suggestions for a draft listing.
+    create() => POST /ai/assistant/listing/tips/
+    """
 
-        if not all([brand, model, year, engine]):
-            return Response(
-                {"error": "Необхідні поля: brand, model, year, engine"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+    serializer_class = ListingDraftSerializer
+    permission_classes = [AllowAny]
 
-        # 🔮 Проста логіка-заглушка
-        suggested_price = 10000  # TODO: розраховувати на основі year/engine
-        description = f"{brand} {model} {year} року з двигуном {engine} в чудовому стані. Ідеально підходить для міста та подорожей."
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        draft_data = serializer.validated_data
 
-        return Response({
-            "description": description,
-            "price": suggested_price,
-            "recommendations": {
-                "mileage": "до 150 тис. км",
-                "transmission": "автомат",
-                "drive_type": "передній"
-            }
-        })
+        suggestions = generate_listing_suggestions(draft_data)
+        return Response(suggestions, status=status.HTTP_200_OK)
+
+    # Optional: expose an endpoint to preview generated description only
+    @action(detail=False, methods=["POST"], url_path="description")
+    def description(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        description = generate_listing_suggestions(serializer.validated_data)["description"]
+        return Response({"description": description})
