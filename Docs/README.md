@@ -48,8 +48,11 @@ https://github.com/GlebSmirnoff/1-/blob/master/frontend/src/shared/utils/validat
 /src/
 
 https://github.com/GlebSmirnoff/1-/blob/master/frontend/src/main.tsx
+
 https://github.com/GlebSmirnoff/1-/blob/master/frontend/src/App.tsx
+
 https://github.com/GlebSmirnoff/1-/blob/master/frontend/src/routes.tsx
+
 https://github.com/GlebSmirnoff/1-/blob/master/frontend/src/vite-env.d.ts
 
 
